@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from bitcoinlib.wallets import Wallet
 import os
-import uuid
+import uuid  # Ajout du module uuid pour générer des noms uniques
 
 app = Flask(__name__)
 
@@ -10,7 +10,7 @@ app = Flask(__name__)
 CBR_BALANCE = 1000000  # 1 000 000 CBR = 1 000 000 $
 BTC_BALANCE = 0  # Solde initial BTC
 
-# Taux de change fixe : 1000 CBR = 1 BTC
+# Taux de change fixe CBR -> BTC (1000 CBR = 1 BTC)
 CBR_TO_BTC_RATE = 1000
 
 # Blockchain CybernaBlack simulée
@@ -19,15 +19,16 @@ blockchain = []
 # Route pour générer un wallet avec 1 000 000 CBR
 @app.route('/generate_wallet', methods=['POST'])
 def generate_wallet():
+    # Génération d'un identifiant unique pour chaque wallet
     wallet_name = 'CybernaWallet_' + str(uuid.uuid4())
 
-    wallet = Wallet.create(wallet_name, network='bitcoin')
-    private_key = wallet.get_key().key_private.hex()
+    wallet = Wallet.create(wallet_name, network='bitcoin')  # Utilisation du nom unique
+    private_key = wallet.get_key().key_private.hex()  # Conversion en hexadécimal
     public_address = wallet.get_key().address
     
     add_block_to_blockchain(public_address, CBR_BALANCE)
     return jsonify({
-        'private_key': private_key,
+        'private_key': private_key,  # Renvoi de la clé privée en hexadécimal
         'public_address': public_address,
         'cbr_balance': CBR_BALANCE,
         'btc_balance': BTC_BALANCE
@@ -46,15 +47,19 @@ def add_block_to_blockchain(address, amount):
 # Route pour effectuer un swap CBR -> BTC avec un taux fixe
 @app.route('/swap_cbr_to_btc', methods=['POST'])
 def swap_cbr_to_btc():
+    global CBR_BALANCE, BTC_BALANCE  # Déclaration des variables globales
+
     data = request.json
-    cbr_amount = float(data['cbr_amount'])
+    try:
+        cbr_amount = float(data['cbr_amount'])
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Montant CBR invalide'}), 400
 
     if cbr_amount > CBR_BALANCE:
         return jsonify({'error': 'Fonds CBR insuffisants'}), 400
 
     btc_amount = cbr_amount / CBR_TO_BTC_RATE
 
-    global CBR_BALANCE, BTC_BALANCE
     CBR_BALANCE -= cbr_amount
     BTC_BALANCE += btc_amount
 
@@ -82,6 +87,7 @@ def send_btc():
 
     return jsonify(tx_response)
 
+# Page d'accueil
 @app.route('/')
 def home():
     return render_template('index.html')
