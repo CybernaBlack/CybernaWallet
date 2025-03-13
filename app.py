@@ -79,11 +79,15 @@ def send_btc():
 
     return jsonify(tx_response)
 
-# Récupérer le prix du BTC
+# Récupérer le prix du BTC via l'API CoinGecko
 def get_btc_price():
-    response = requests.get('https://api.coindesk.com/v1/bpi/currentprice/BTC.json')
-    data = response.json()
-    return data['bpi']['USD']['rate_float']
+    try:
+        response = requests.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+        data = response.json()
+        return data['bitcoin']['usd']
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching BTC price: {e}")
+        return 0  # Retourne un prix de 0 en cas d'erreur
 
 @app.route('/')
 def home():
