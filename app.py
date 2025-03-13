@@ -82,9 +82,9 @@ def get_btc_price():
 def index():
     return render_template('index.html')
 
-@app.route('/styles.css')
+@app.route('/static/styles.css')
 def styles():
-    return send_from_directory(os.getcwd(), 'styles.css')
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'styles.css')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
