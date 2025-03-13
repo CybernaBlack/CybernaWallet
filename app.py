@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import requests
 from bitcoinlib.wallets import Wallet
+import os
 
 app = Flask(__name__)
 
@@ -76,5 +77,14 @@ def get_btc_price():
     data = response.json()
     return data['bpi']['USD']['rate_float']
 
+# Servir les fichiers HTML et CSS
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/styles.css')
+def styles():
+    return send_from_directory(os.getcwd(), 'styles.css')
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
