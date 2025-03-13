@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template
 import requests
 from bitcoinlib.wallets import Wallet
 import os
@@ -15,7 +15,7 @@ USD_TO_EUR = 0.94
 # Blockchain CybernaBlack simulée
 blockchain = []
 
-# Création de wallet avec 1 000 000 CBR attribués
+# Route pour générer un wallet avec 1 000 000 CBR
 @app.route('/generate_wallet', methods=['POST'])
 def generate_wallet():
     wallet = Wallet.create('CybernaWallet', keys='create')
@@ -40,17 +40,21 @@ def add_block_to_blockchain(address, amount):
     }
     blockchain.append(block)
 
-# Swap CBR -> BTC
+# Route pour effectuer un swap CBR -> BTC
 @app.route('/swap_cbr_to_btc', methods=['POST'])
 def swap_cbr_to_btc():
     data = request.json
     cbr_amount = data['cbr_amount']
-    btc_amount = cbr_amount / get_btc_price()
+    btc_amount = cbr_amount / get_btc_price()  # Conversion CBR -> BTC
+
+    global CBR_BALANCE, BTC_BALANCE
+    CBR_BALANCE -= cbr_amount
+    BTC_BALANCE += btc_amount
 
     return jsonify({
         'btc_amount': btc_amount,
-        'cbr_balance': CBR_BALANCE - cbr_amount,
-        'btc_balance': BTC_BALANCE + btc_amount
+        'cbr_balance': CBR_BALANCE,
+        'btc_balance': BTC_BALANCE
     })
 
 # Envoi de BTC via BlockCypher
@@ -59,7 +63,7 @@ def send_btc():
     data = request.json
     from_address = data['from_address']
     to_address = data['to_address']
-    amount = int(float(data['amount']) * 100000000)  # Converti BTC en satoshis
+    amount = int(float(data['amount']) * 100000000)  # Convertit BTC en satoshis
 
     tx_data = {
         "inputs": [{"addresses": [from_address]}],
@@ -77,14 +81,11 @@ def get_btc_price():
     data = response.json()
     return data['bpi']['USD']['rate_float']
 
-# Servir les fichiers HTML et CSS
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
-@app.route('/static/styles.css')
-def styles():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'styles.css')
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
+    # Rendre le serveur accessible sur l'IP et le port définis par Render
+    port = int(os.environ.get("PORT", 5000))  # Prend le port de l'environnement ou 5000 par défaut
+    app.run(host='0.0.0.0', port=port)  # L'hôte est défini sur '0.0.0.0' pour être accessible partout
