@@ -2,15 +2,15 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from bitcoinlib.wallets import Wallet
 import os
-import uuid  # Ajout du module uuid pour générer des noms uniques
+import uuid
 
 app = Flask(__name__)
 
-# Paramètres initiaux pour CBR et BTC
+# Paramètres initiaux pour CBR
 CBR_BALANCE = 1000000  # 1 000 000 CBR = 1 000 000 $
-BTC_BALANCE = 0  # Solde initial BTC
+BTC_BALANCE = 50  # Solde initial BTC
 
-# Taux de change fixe CBR -> BTC (1000 CBR = 1 BTC)
+# Taux de change CBR -> BTC fixe : 1000 CBR = 1 BTC
 CBR_TO_BTC_RATE = 1000
 
 # Blockchain CybernaBlack simulée
@@ -22,13 +22,13 @@ def generate_wallet():
     # Génération d'un identifiant unique pour chaque wallet
     wallet_name = 'CybernaWallet_' + str(uuid.uuid4())
 
-    wallet = Wallet.create(wallet_name, network='bitcoin')  # Utilisation du nom unique
-    private_key = wallet.get_key().key_private.hex()  # Conversion en hexadécimal
+    wallet = Wallet.create(wallet_name, network='bitcoin')  # Nom unique
+    private_key = wallet.get_key().key_private.hex()  # Clé privée en hex
     public_address = wallet.get_key().address
-    
+
     add_block_to_blockchain(public_address, CBR_BALANCE)
     return jsonify({
-        'private_key': private_key,  # Renvoi de la clé privée en hexadécimal
+        'private_key': private_key,
         'public_address': public_address,
         'cbr_balance': CBR_BALANCE,
         'btc_balance': BTC_BALANCE
@@ -44,27 +44,24 @@ def add_block_to_blockchain(address, amount):
     }
     blockchain.append(block)
 
-# Route pour effectuer un swap CBR -> BTC avec un taux fixe
+# Route pour effectuer un swap CBR -> BTC
 @app.route('/swap_cbr_to_btc', methods=['POST'])
 def swap_cbr_to_btc():
-    global CBR_BALANCE, BTC_BALANCE  # Déclaration des variables globales
+    global CBR_BALANCE, BTC_BALANCE
 
     data = request.json
-    try:
-        cbr_amount = float(data['cbr_amount'])
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Montant CBR invalide'}), 400
+    cbr_amount = int(data['cbr_amount'])
 
     if cbr_amount > CBR_BALANCE:
-        return jsonify({'error': 'Fonds CBR insuffisants'}), 400
+        return jsonify({'error': 'Solde CBR insuffisant'})
 
-    btc_amount = cbr_amount / CBR_TO_BTC_RATE
+    btc_amount = cbr_amount / CBR_TO_BTC_RATE  # Taux fixe 1000 CBR = 1 BTC
 
     CBR_BALANCE -= cbr_amount
     BTC_BALANCE += btc_amount
 
     return jsonify({
-        'btc_amount': f"{btc_amount:.8f}",
+        'message': f'{cbr_amount} CBR convertis en {btc_amount} BTC',
         'cbr_balance': CBR_BALANCE,
         'btc_balance': BTC_BALANCE
     })
@@ -77,6 +74,8 @@ def send_btc():
     to_address = data['to_address']
     amount = int(float(data['amount']) * 100000000)  # Convertit BTC en satoshis
 
+    print(f"🔹 Envoi BTC : de {from_address} à {to_address}, montant : {amount} satoshis")
+
     tx_data = {
         "inputs": [{"addresses": [from_address]}],
         "outputs": [{"addresses": [to_address], "value": amount}]
@@ -85,9 +84,17 @@ def send_btc():
     url = 'https://api.blockcypher.com/v1/btc/main/txs/new'
     tx_response = requests.post(url, json=tx_data).json()
 
+    print(f"🔹 Réponse API BlockCypher : {tx_response}")
+
+    if 'errors' in tx_response:
+        print(f"🔴 Erreurs API : {tx_response['errors']}")
+        return jsonify({'error': tx_response['errors']})
+
+    if 'tx' in tx_response:
+        print(f"🟢 Transaction créée : {tx_response['tx']['hash']}")
+
     return jsonify(tx_response)
 
-# Page d'accueil
 @app.route('/')
 def home():
     return render_template('index.html')
