@@ -23,12 +23,12 @@ def generate_wallet():
     wallet_name = 'CybernaWallet_' + str(uuid.uuid4())
 
     wallet = Wallet.create(wallet_name, network='bitcoin')  # Utilisation du nom unique
-    private_key = wallet.get_key().key_private
+    private_key = wallet.get_key().key_private.hex()  # Conversion en hexadécimal
     public_address = wallet.get_key().address
     
     add_block_to_blockchain(public_address, CBR_BALANCE)
     return jsonify({
-        'private_key': private_key,
+        'private_key': private_key,  # Renvoi de la clé privée en hexadécimal
         'public_address': public_address,
         'cbr_balance': CBR_BALANCE,
         'btc_balance': BTC_BALANCE
