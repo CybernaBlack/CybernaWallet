@@ -4,21 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CybernaWallet</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Bienvenue sur CybernaWallet</h1>
-    <p>Gérez vos CBR et BTC ici.</p>
-    <button onclick="generateWallet()">Générer un Wallet</button>
+    <div class="container">
+        <h1>CybernaWallet</h1>
+
+        <!-- Formulaire pour générer un wallet -->
+        <h2>Générer un Wallet</h2>
+        <button id="generate-wallet-btn">Générer un Wallet</button>
+        <div id="wallet-info"></div>
+
+        <!-- Formulaire pour swap CBR -> BTC -->
+        <h2>Swap CBR contre BTC</h2>
+        <form id="swap-form">
+            <input type="number" id="cbr-amount" placeholder="Montant CBR à échanger" required>
+            <button type="submit">Swap</button>
+        </form>
+        <div id="swap-info"></div>
+
+        <!-- Formulaire pour envoyer BTC -->
+        <h2>Envoyer BTC</h2>
+        <form id="send-btc-form">
+            <input type="text" id="from-address" placeholder="Adresse d'envoi" required>
+            <input type="text" id="to-address" placeholder="Adresse de destination" required>
+            <input type="number" id="btc-amount" placeholder="Montant BTC" required>
+            <button type="submit">Envoyer BTC</button>
+        </form>
+        <div id="send-info"></div>
+    </div>
 
     <script>
-        function generateWallet() {
-            fetch('/generate_wallet', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                alert("Wallet créé ! Adresse publique : " + data.public_address);
+        document.getElementById('generate-wallet-btn').addEventListener('click', async () => {
+            const response = await fetch('/generate_wallet', { method: 'POST' });
+            const data = await response.json();
+            document.getElementById('wallet-info').innerHTML = `
+                <p>Adresse publique: ${data.public_address}</p>
+                <p>Clé privée: ${data.private_key}</p>
+                <p>Solde CBR: ${data.cbr_balance}</p>
+                <p>Solde BTC: ${data.btc_balance}</p>
+            `;
+        });
+
+        document.getElementById('swap-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cbrAmount = document.getElementById('cbr-amount').value;
+            const response = await fetch('/swap_cbr_to_btc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cbr_amount: cbrAmount })
             });
-        }
+            const data = await response.json();
+            document.getElementById('swap-info').innerHTML = `
+                <p>BTC reçus: ${data.btc_amount}</p>
+                <p>Solde CBR: ${data.cbr_balance}</p>
+                <p>Solde BTC: ${data.btc_balance}</p>
+            `;
+        });
+
+        document.getElementById('send-btc-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fromAddress = document.getElementById('from-address').value;
+            const toAddress = document.getElementById('to-address').value;
+            const btcAmount = document.getElementById('btc-amount').value;
+            const response = await fetch('/send_btc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    from_address: fromAddress,
+                    to_address: toAddress,
+                    amount: btcAmount
+                })
+            });
+            const data = await response.json();
+            document.getElementById('send-info').innerHTML = `
+                <p>Transaction ID: ${data.tx.hash}</p>
+            `;
+        });
     </script>
 </body>
 </html>
