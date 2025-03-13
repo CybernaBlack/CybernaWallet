@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from bitcoinlib.wallets import Wallet
 import os
+import uuid  # Ajout du module uuid pour générer des noms uniques
 
 app = Flask(__name__)
 
@@ -18,7 +19,10 @@ blockchain = []
 # Route pour générer un wallet avec 1 000 000 CBR
 @app.route('/generate_wallet', methods=['POST'])
 def generate_wallet():
-    wallet = Wallet.create('CybernaWallet', network='bitcoin')  # Correction ici
+    # Génération d'un identifiant unique pour chaque wallet
+    wallet_name = 'CybernaWallet_' + str(uuid.uuid4())
+
+    wallet = Wallet.create(wallet_name, network='bitcoin')  # Utilisation du nom unique
     private_key = wallet.get_key().key_private
     public_address = wallet.get_key().address
     
