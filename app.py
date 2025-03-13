@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 import requests
 from bitcoinlib.wallets import Wallet
+import os
 
 app = Flask(__name__)
 
