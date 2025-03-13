@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import requests
 from bitcoinlib.wallets import Wallet
 import os
@@ -8,9 +8,6 @@ app = Flask(__name__)
 # Paramètres initiaux pour CBR
 CBR_BALANCE = 1000000  # 1 000 000 CBR = 1 000 000 $
 BTC_BALANCE = 0  # Solde initial BTC
-
-# Taux de change USD -> EUR
-USD_TO_EUR = 0.94
 
 # Blockchain CybernaBlack simulée
 blockchain = []
@@ -63,17 +60,43 @@ def send_btc():
     data = request.json
     from_address = data['from_address']
     to_address = data['to_address']
-    amount = int(float(data['amount']) * 100000000)  # Convertit BTC en satoshis
+    amount = float(data['amount'])
 
+    # Convertit le montant BTC en satoshis (1 BTC = 100,000,000 satoshis)
+    amount_satoshis = int(amount * 100000000)
+
+    # Construction de la transaction
     tx_data = {
         "inputs": [{"addresses": [from_address]}],
-        "outputs": [{"addresses": [to_address], "value": amount}]
+        "outputs": [{"addresses": [to_address], "value": amount_satoshis}]
     }
 
+    # Créer une nouvelle transaction avec BlockCypher
     url = 'https://api.blockcypher.com/v1/btc/main/txs/new'
     tx_response = requests.post(url, json=tx_data).json()
 
-    return jsonify(tx_response)
+    if "error" in tx_response:
+        return jsonify({"error": tx_response["error"]})
+
+    # Signer la transaction avec la clé privée de l'adresse source
+    private_key = data['private_key']
+    tx_signature = sign_transaction(tx_response['tx'], private_key)
+
+    # Envoyer la transaction signée à BlockCypher
+    url = 'https://api.blockcypher.com/v1/btc/main/txs/send'
+    send_response = requests.post(url, json={"tx": tx_signature}).json()
+
+    if "error" in send_response:
+        return jsonify({"error": send_response["error"]})
+
+    return jsonify(send_response)
+
+# Fonction pour signer la transaction
+def sign_transaction(tx_data, private_key):
+    from bitcoinlib.wallets import Wallet
+    wallet = Wallet.import_wallet("temp_wallet", keys=private_key)
+    tx = wallet.sign_transaction(tx_data)
+    return tx
 
 # Récupérer le prix du BTC
 def get_btc_price():
@@ -81,11 +104,14 @@ def get_btc_price():
     data = response.json()
     return data['bpi']['USD']['rate_float']
 
+# Servir les fichiers HTML et CSS
 @app.route('/')
 def home():
     return render_template('index.html')
 
+@app.route('/static/styles.css')
+def styles():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'styles.css')
+
 if __name__ == "__main__":
-    # Rendre le serveur accessible sur l'IP et le port définis par Render
-    port = int(os.environ.get("PORT", 5000))  # Prend le port de l'environnement ou 5000 par défaut
-    app.run(host='0.0.0.0', port=port)  # L'hôte est défini sur '0.0.0.0' pour être accessible partout
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False)
